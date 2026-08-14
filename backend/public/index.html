@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Subir Foto</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #111;
+      color: white;
+
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 400px;
+
+      background: #1b1b1b;
+      border-radius: 20px;
+
+      padding: 30px;
+
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+    }
+
+    input[type="file"] {
+  width: 100%;
+  margin-bottom: 20px;
+  color: white;
+  font-size: 16px;
+  padding: 5px;
+}
+
+input[type="file"]::file-selector-button {
+  background: #00b894;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+
+      padding: 15px;
+
+      background: #00b894;
+      color: white;
+
+      font-size: 18px;
+      font-weight: bold;
+
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .success {
+      margin-top: 20px;
+      color: #00ff95;
+      display: none;
+    }
+
+    .success button {
+      margin-top: 20px;
+      background: #0984e3;
+    }
+
+    img {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>Enviar Foto 📸</h1>
+
+    <div id="uploadSection">
+
+      <img id="preview" />
+
+      <form id="uploadForm">
+
+        <input
+          type="file"
+          name="photo"
+          id="photoInput"
+          accept="image/*"
+          required
+        />
+
+        <button type="submit" id="uploadButton">
+          Subir Foto
+        </button>
+
+      </form>
+
+    </div>
+
+    <div class="success" id="successMessage">
+
+      <div>
+        ✅ Foto subida correctamente
+      </div>
+
+      <button
+        type="button"
+        id="uploadAnotherButton"
+      >
+        📸 Subir otra foto
+      </button>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    const form = document.getElementById("uploadForm");
+    const input = document.getElementById("photoInput");
+    const preview = document.getElementById("preview");
+
+    const uploadSection =
+      document.getElementById("uploadSection");
+
+    const success =
+      document.getElementById("successMessage");
+
+    const uploadAnotherButton =
+      document.getElementById("uploadAnotherButton");
+
+
+    // ----------------------------------------
+    // PREVIEW DE LA FOTO
+    // ----------------------------------------
+
+    input.addEventListener("change", () => {
+
+      const file = input.files[0];
+
+      if (file) {
+
+        preview.src = URL.createObjectURL(file);
+
+        preview.style.display = "block";
+
+      }
+
+    });
+
+
+    // ----------------------------------------
+    // SUBIR FOTO
+    // ----------------------------------------
+
+    form.addEventListener("submit", async (e) => {
+
+      e.preventDefault();
+
+      const file = input.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      const formData = new FormData();
+
+      formData.append("photo", file);
+
+      try {
+
+        const response = await fetch("/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+
+        // Verificamos que el servidor haya
+        // respondido correctamente
+
+        if (!response.ok) {
+          throw new Error("Error al subir la foto");
+        }
+
+
+        // ------------------------------------
+        // SUBIDA CORRECTA
+        // ------------------------------------
+
+        uploadSection.style.display = "none";
+
+        success.style.display = "block";
+
+        form.reset();
+
+        preview.src = "";
+        preview.style.display = "none";
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(
+          "No se pudo subir la foto. Intentá nuevamente."
+        );
+
+      }
+
+    });
+
+
+    // ----------------------------------------
+    // SUBIR OTRA FOTO
+    // ----------------------------------------
+
+    uploadAnotherButton.addEventListener("click", () => {
+
+      // Ocultar mensaje de éxito
+      success.style.display = "none";
+
+      // Mostrar nuevamente el formulario
+      uploadSection.style.display = "block";
+
+      // Limpiar formulario
+      form.reset();
+
+      preview.src = "";
+      preview.style.display = "none";
+
+    });
+
+  </script>
+
+</body>
+</html>
