@@ -1,13 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
-const path = require("path");
 const http = require("http");
-const fs = require("fs");
 const { Server } = require("socket.io");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -18,55 +17,123 @@ const io = new Server(server, {
 
 app.use(cors());
 
-const SERVER_IP = "192.168.100.4";
+// ==========================
+// SUPABASE
+// ==========================
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY,
+);
 
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+// ==========================
+// MULTER
+// ==========================
+
+// La foto queda temporalmente en memoria.
+// Después la mandamos a Supabase.
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB máximo
   },
 });
 
-const upload = multer({ storage });
+// ==========================
+// OBTENER FOTOS
+// ==========================
 
-app.use("/uploads", express.static("uploads"));
+app.get("/images", async (req, res) => {
+  try {
+    const { data, error } = await supabase.storage.from("fotos").list("", {
+      limit: 1000,
+      sortBy: {
+        column: "created_at",
+        order: "desc",
+      },
+    });
 
-app.get("/images", (req, res) => {
-  const uploadPath = path.join(__dirname, "uploads");
-
-  fs.readdir(uploadPath, (err, files) => {
-    if (err) {
+    if (error) {
+      console.error("Error obteniendo fotos:", error);
       return res.json([]);
     }
 
-    const images = files
+    const images = data
       .filter((file) => {
-        return /\.(jpg|jpeg|png|gif|webp)$/i.test(file);
+        return /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
       })
       .map((file) => {
-        return `http://${SERVER_IP}:3000/uploads/${file}`;
+        const { data } = supabase.storage.from("fotos").getPublicUrl(file.name);
+
+        return data.publicUrl;
       });
 
     res.json(images);
-  });
+  } catch (error) {
+    console.error("Error:", error);
+    res.json([]);
+  }
 });
+
+// ==========================
+// PÁGINA PRINCIPAL
+// ==========================
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/public/index.html");
 });
 
-app.post("/upload", upload.single("photo"), (req, res) => {
-  const imageUrl = `http://${SERVER_IP}:3000/uploads/${req.file.filename}`;
+// ==========================
+// SUBIR FOTO
+// ==========================
 
-  io.emit("new-image", imageUrl);
+app.post("/upload", upload.single("photo"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send("No se recibió ninguna foto");
+    }
 
-  res.send(`
-    <h2>Foto subida correctamente ✅</h2>
-  `);
+    const extension = req.file.originalname.split(".").pop().toLowerCase();
+
+    const fileName = `${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 8)}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from("fotos")
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error subiendo a Supabase:", error);
+      return res.status(500).send("No se pudo subir la foto");
+    }
+
+    const { data } = supabase.storage.from("fotos").getPublicUrl(fileName);
+
+    const imageUrl = data.publicUrl;
+
+    console.log("Foto subida:", imageUrl);
+
+    // Avisamos a todos los monitores conectados
+    io.emit("new-image", imageUrl);
+
+    res.send(`
+      <h2>Foto subida correctamente ✅</h2>
+    `);
+  } catch (error) {
+    console.error("Error en /upload:", error);
+    res.status(500).send("No se pudo subir la foto");
+  }
 });
+
+// ==========================
+// SOCKET.IO
+// ==========================
 
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
@@ -75,6 +142,10 @@ io.on("connection", (socket) => {
     console.log("Usuario desconectado:", socket.id);
   });
 });
+
+// ==========================
+// SERVIDOR
+// ==========================
 
 const PORT = process.env.PORT || 3000;
 
