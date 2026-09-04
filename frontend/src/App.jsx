@@ -3,12 +3,11 @@ import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useState, useRef } from "react";
 import { io } from "socket.io-client";
 
-const SERVER_IP = "192.168.100.4";
-const SERVER_URL = `http://${SERVER_IP}:3000`;
+const SERVER_URL = "https://fotosqr-backend.onrender.com";
 
 const socket = io(SERVER_URL);
 
-const IMAGE_DURATION = 5000;
+const IMAGE_DURATION = 10000;
 
 function App() {
   const uploadUrl = SERVER_URL;
