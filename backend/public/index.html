@@ -80,8 +80,13 @@ input[type="file"]::file-selector-button {
     }
 
     button:hover {
-      opacity: 0.9;
-    }
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
     .success {
       margin-top: 20px;
@@ -153,6 +158,7 @@ input[type="file"]::file-selector-button {
     const form = document.getElementById("uploadForm");
     const input = document.getElementById("photoInput");
     const preview = document.getElementById("preview");
+    const uploadButton = document.getElementById("uploadButton");
 
     const uploadSection =
       document.getElementById("uploadSection");
@@ -197,6 +203,9 @@ input[type="file"]::file-selector-button {
         return;
       }
 
+    uploadButton.disabled = true;
+    uploadButton.textContent = "⏳ Subiendo foto...";
+
       const formData = new FormData();
 
       formData.append("photo", file);
@@ -233,13 +242,16 @@ input[type="file"]::file-selector-button {
 
       } catch (error) {
 
-        console.error(error);
+  console.error(error);
 
-        alert(
-          "No se pudo subir la foto. Intentá nuevamente."
-        );
+  uploadButton.disabled = false;
+  uploadButton.textContent = "Subir Foto";
 
-      }
+  alert(
+    "No se pudo subir la foto. Intentá nuevamente."
+  );
+
+}
 
     });
 
@@ -261,6 +273,9 @@ input[type="file"]::file-selector-button {
 
       preview.src = "";
       preview.style.display = "none";
+
+      uploadButton.disabled = false;
+      uploadButton.textContent = "Subir Foto";
 
     });
 
